@@ -36,3 +36,6 @@ Expected columns:
 - NLTK resources are auto-downloaded on first run (stopwords, punkt, wordnet, omw-1.4).
 - 70/30 stratified split is used.
 - Evaluation includes accuracy, precision, recall, F1, and confusion matrices.
+
+
+https://github.com/user-attachments/assets/34ff8269-e154-4881-92b5-80d6a0402153
