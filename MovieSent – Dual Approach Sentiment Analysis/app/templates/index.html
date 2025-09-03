@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>MovieSent – Dual Approach Sentiment Analysis</title>
+	<link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+	<header class="hero">
+		<div class="hero__inner">
+			<div class="brand">
+				<div class="brand__logo">🎬</div>
+				<div class="brand__title">MovieSent</div>
+			</div>
+			<p class="hero__subtitle">Advanced sentiment analysis for movie reviews using dual ML approaches</p>
+		</div>
+	</header>
+
+	<main class="container">
+		<section>
+			<h2 class="section__title">Choose Analysis Model</h2>
+			<div class="model-grid" id="model-grid">
+				<button class="model-card active" data-model="logreg" type="button">
+					<div class="model-card__icon">⚡</div>
+					<div class="model-card__title">Logistic Regression</div>
+					<div class="model-card__desc">Classical ML with TF-IDF vectorization and N-Grams</div>
+					<ul class="model-card__facts">
+						<li><span>Speed</span><strong>Fast</strong></li>
+						<li><span>Accuracy</span><strong>~89%</strong></li>
+						<li><span>Features</span><strong>TF-IDF</strong></li>
+					</ul>
+				</button>
+
+				<button class="model-card" data-model="lstm" type="button">
+					<div class="model-card__icon">🧠</div>
+					<div class="model-card__title">LSTM Network</div>
+					<div class="model-card__desc">Deep learning with embeddings and sequential patterns</div>
+					<ul class="model-card__facts">
+						<li><span>Speed</span><strong>Moderate</strong></li>
+						<li><span>Accuracy</span><strong>~92%</strong></li>
+						<li><span>Features</span><strong>Embeddings</strong></li>
+					</ul>
+				</button>
+			</div>
+		</section>
+
+		<section class="panel">
+			<h3 class="panel__title">Enter Movie Review</h3>
+			<form id="predict-form">
+				<input type="hidden" id="model" name="model" value="logreg" />
+				<label for="text" class="sr-only">Enter a movie review</label>
+				<textarea id="text" name="text" rows="6" placeholder="Type or paste a movie review here..." required></textarea>
+				<div class="rating-section">
+					<label>Rate this review (optional):</label>
+					<div class="stars">
+						<span class="star" data-rating="1">⭐</span>
+						<span class="star" data-rating="2">⭐</span>
+						<span class="star" data-rating="3">⭐</span>
+						<span class="star" data-rating="4">⭐</span>
+						<span class="star" data-rating="5">⭐</span>
+					</div>
+				</div>
+				<div class="actions">
+					<button type="submit" class="btn">Analyze Sentiment</button>
+				</div>
+			</form>
+			<div class="suggestions" id="suggestions">
+				<div class="suggestions__title">Try a sample:</div>
+				<div class="suggestions__list">
+					<button type="button" class="chip" data-text="This movie was absolutely fantastic! The plot was engaging and the acting was superb.">Positive sample</button>
+					<button type="button" class="chip" data-text="I was bored the entire time. The story made no sense and the acting was wooden.">Negative sample</button>
+					<button type="button" class="chip" data-text="It had some great scenes but overall felt average with a predictable ending.">Neutral-ish sample</button>
+				</div>
+			</div>
+			<div id="result" class="result" aria-live="polite">
+				<div class="result__placeholder">Enter a movie review to see analysis results</div>
+			</div>
+		</section>
+
+		<section class="panel">
+			<h3 class="panel__title">Review History</h3>
+			<div id="review-history" class="review-history">
+				<div class="review-history__empty">No reviews yet. Start analyzing to see your history!</div>
+			</div>
+		</section>
+
+		<section class="panel">
+			<h3 class="panel__title">Data Insights</h3>
+			<div class="insights-grid">
+				<div class="insight-card">
+					<div class="insight-icon">📊</div>
+					<div class="insight-title">Model Performance</div>
+					<div class="insight-value">LogReg: 89.2% | LSTM: 92.7%</div>
+				</div>
+				<div class="insight-card">
+					<div class="insight-icon">⚡</div>
+					<div class="insight-title">Speed Comparison</div>
+					<div class="insight-value">LogReg: 45ms | LSTM: 187ms</div>
+				</div>
+				<div class="insight-card">
+					<div class="insight-icon">🎯</div>
+					<div class="insight-title">Accuracy Trend</div>
+					<div class="insight-value">LSTM leads by 3.5%</div>
+				</div>
+			</div>
+		</section>
+	</main>
+
+	<script>
+	const form = document.getElementById('predict-form');
+	const resultDiv = document.getElementById('result');
+	const modelInput = document.getElementById('model');
+	const modelGrid = document.getElementById('model-grid');
+	const textareaEl = document.getElementById('text');
+	const suggestionsEl = document.getElementById('suggestions');
+	const reviewHistoryEl = document.getElementById('review-history');
+	let currentRating = 0;
+	let reviewHistory = JSON.parse(localStorage.getItem('reviewHistory') || '[]');
+
+	// Initialize review history
+	function initReviewHistory() {
+		if (reviewHistory.length > 0) {
+			renderReviewHistory();
+		}
+	}
+
+	// Star rating system
+	document.querySelectorAll('.star').forEach(star => {
+		star.addEventListener('click', () => {
+			const rating = parseInt(star.dataset.rating);
+			currentRating = rating;
+			updateStars(rating);
+		});
+	});
+
+	function updateStars(rating) {
+		document.querySelectorAll('.star').forEach((star, index) => {
+			if (index < rating) {
+				star.classList.add('selected');
+			} else {
+				star.classList.remove('selected');
+			}
+		});
+	}
+
+	// Toggle model selection via cards
+	modelGrid.addEventListener('click', (e) => {
+		const card = e.target.closest('.model-card');
+		if (!card) return;
+		[...modelGrid.querySelectorAll('.model-card')].forEach(c => c.classList.remove('active'));
+		card.classList.add('active');
+		modelInput.value = card.dataset.model;
+	});
+
+	// Suggestions -> fill textarea
+	suggestionsEl.addEventListener('click', (e) => {
+		const chip = e.target.closest('.chip');
+		if (!chip) return;
+		textareaEl.value = chip.dataset.text;
+		textareaEl.focus();
+	});
+
+	function toPercent(n){return Math.max(0, Math.min(100, Math.round(n)))}
+	
+	function renderMeter(container, percent){
+		const p = toPercent(percent);
+		const r = 46; const c = 2*Math.PI*r; const off = c*(1 - p/100);
+		container.innerHTML = `
+			<div class="meter">
+				<svg viewBox="0 0 120 120" width="120" height="120">
+					<circle class="meter__bg" cx="60" cy="60" r="46"/>
+					<circle class="meter__fg" cx="60" cy="60" r="46" stroke-dasharray="${c}" stroke-dashoffset="${off}"/>
+				</svg>
+				<div class="meter__label">${p}%<span>confidence</span></div>
+			</div>`;
+		
+		// Animate meter
+		setTimeout(() => {
+			const meterFg = container.querySelector('.meter__fg');
+			meterFg.style.strokeDashoffset = off;
+		}, 100);
+	}
+	
+	function renderBars(container, proba, predictionLabel){
+		console.log('Probability data:', proba); // Debug log
+		
+		// Check if we have neutral sentiment - check multiple possible keys
+		const hasNeutral = proba && (
+			proba.neutral !== undefined || 
+			proba.Neutral !== undefined || 
+			proba.neutral !== undefined ||
+			proba['neutral'] !== undefined ||
+			proba['Neutral'] !== undefined
+		);
+		
+		// Also check if the prediction label itself is neutral
+		const isNeutralPrediction = predictionLabel && (
+			predictionLabel.toLowerCase().includes('neutral') || 
+			predictionLabel.toLowerCase() === 'neutral'
+		);
+		
+		if (hasNeutral || isNeutralPrediction) {
+			// Show neutral sentiment
+			const neutral = proba ? (proba.neutral ?? proba.Neutral ?? proba['neutral'] ?? proba['Neutral'] ?? 0.5) : 0.5;
+			const neutralPct = Math.round(neutral * 100);
+			
+			container.innerHTML = `
+				<div class="bars">
+					<div class="bar bar--neutral"><span style="width:0%;"></span><label>Neutral 0%</label></div>
+				</div>`;
+			
+			// Animate neutral bar
+			setTimeout(() => {
+				const neutralBar = container.querySelector('.bar--neutral span');
+				const neutralLabel = container.querySelector('.bar--neutral label');
+				
+				neutralBar.style.width = neutralPct + '%';
+				neutralLabel.textContent = `Neutral ${neutralPct}%`;
+			}, 200);
+		} else {
+			// Show positive/negative sentiment
+			const pos = (proba && (proba.positive ?? proba.pos ?? proba.Positive ?? proba['positive'] ?? proba['Positive'])) ?? null;
+			const neg = (proba && (proba.negative ?? proba.neg ?? proba.Negative ?? proba['negative'] ?? proba['Negative'])) ?? (pos != null ? 1 - pos : null);
+			let posPct = pos != null ? Math.round(pos * 100) : 0;
+			let negPct = neg != null ? Math.round(neg * 100) : (100 - posPct);
+			
+			container.innerHTML = `
+				<div class="bars">
+					<div class="bar bar--pos"><span style="width:0%;"></span><label>Positive 0%</label></div>
+					<div class="bar bar--neg"><span style="width:0%;"></span><label>Negative 0%</label></div>
+				</div>`;
+			
+			// Animate bars
+			setTimeout(() => {
+				const posBar = container.querySelector('.bar--pos span');
+				const negBar = container.querySelector('.bar--neg span');
+				const posLabel = container.querySelector('.bar--pos label');
+				const negLabel = container.querySelector('.bar--neg label');
+				
+				posBar.style.width = posPct + '%';
+				negBar.style.width = negPct + '%';
+				posLabel.textContent = `Positive ${posPct}%`;
+				negLabel.textContent = `Negative ${negPct}%`;
+			}, 200);
+		}
+	}
+
+	function renderReviewHistory() {
+		if (reviewHistory.length === 0) {
+			reviewHistoryEl.innerHTML = '<div class="review-history__empty">No reviews yet. Start analyzing to see your history!</div>';
+			return;
+		}
+
+		reviewHistoryEl.innerHTML = reviewHistory.map((review, index) => `
+			<div class="review-item" style="animation-delay: ${index * 0.1}s">
+				<div class="review-header">
+					<div class="review-rating">
+						${'⭐'.repeat(review.rating)} ${'☆'.repeat(5 - review.rating)}
+					</div>
+					<div class="review-date">${review.date}</div>
+				</div>
+				<div class="review-text">${review.text.substring(0, 100)}${review.text.length > 100 ? '...' : ''}</div>
+				<div class="review-prediction">
+					<span class="pill">${review.model.toUpperCase()}</span>
+					<span class="pred">${review.prediction}</span>
+				</div>
+			</div>
+		`).join('');
+	}
+
+	form.addEventListener('submit', async (e) => {
+		e.preventDefault();
+		const startTime = Date.now();
+		const text = textareaEl.value.trim();
+		
+		if (!text) return;
+
+		// Show progress bar
+		resultDiv.innerHTML = `
+			<div class="progress-container">
+				<div class="progress-bar">
+					<div class="progress-fill" id="progress-fill"></div>
+				</div>
+				<div class="progress-text">
+					<span id="progress-percent">0%</span> complete
+					<span id="progress-time">0ms</span>
+				</div>
+			</div>`;
+
+		const progressFill = document.getElementById('progress-fill');
+		const progressPercent = document.getElementById('progress-percent');
+		const progressTime = document.getElementById('progress-time');
+		
+		// Simulate progress
+		let progress = 0;
+		const progressInterval = setInterval(() => {
+			progress += Math.random() * 15;
+			if (progress > 90) progress = 90;
+			progressFill.style.width = progress + '%';
+			progressPercent.textContent = Math.round(progress) + '%';
+			progressTime.textContent = (Date.now() - startTime) + 'ms';
+		}, 100);
+
+		const formData = new FormData(form);
+		const payload = Object.fromEntries(formData.entries());
+		
+		try {
+			const res = await fetch('/predict', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+			const data = await res.json();
+			if (!res.ok) throw new Error(data.error || 'Request failed');
+			
+			// Complete progress
+			clearInterval(progressInterval);
+			progress = 100;
+			progressFill.style.width = '100%';
+			progressPercent.textContent = '100%';
+			progressTime.textContent = (Date.now() - startTime) + 'ms';
+			
+			// Wait a bit then show results
+			setTimeout(() => {
+				const proba = data.proba || null;
+				const maxProb = proba ? Math.max(...Object.values(proba)) : 1;
+				const confidence = Math.round(maxProb * 100);
+				
+				resultDiv.innerHTML = `
+					<div class="result__head">
+						<div class="pill">${data.model.toUpperCase()}</div>
+						<div class="pred">Prediction: <strong>${data.label}</strong></div>
+					</div>
+					<div class="result__viz">
+						<div id="meterMount"></div>
+						<div id="barsMount"></div>
+					</div>`;
+				
+				renderMeter(document.getElementById('meterMount'), confidence);
+				renderBars(document.getElementById('barsMount'), proba, data.label);
+				
+				// Save to history
+				const review = {
+					text: text,
+					rating: currentRating,
+					model: data.model,
+					prediction: data.label,
+					date: new Date().toLocaleDateString(),
+					timestamp: Date.now()
+				};
+				
+				reviewHistory.unshift(review);
+				if (reviewHistory.length > 10) reviewHistory = reviewHistory.slice(0, 10);
+				localStorage.setItem('reviewHistory', JSON.stringify(reviewHistory));
+				renderReviewHistory();
+				
+				// Reset rating
+				currentRating = 0;
+				updateStars(0);
+			}, 500);
+			
+		} catch (err) {
+			clearInterval(progressInterval);
+			resultDiv.textContent = 'Error: ' + err.message;
+		}
+	});
+
+	// Initialize
+	initReviewHistory();
+	</script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+{
+  "accuracy": 0.2539159663865546,
+  "precision": 0.4158049305910209,
+  "recall": 0.25391596638655467,
+  "f1": 0.3152940613195425,
+  "confusion_matrix": "E:\\MovieSent \u2013 Dual Approach Sentiment Analysis\\artifacts\\lstm_confusion_matrix.png"
+}
